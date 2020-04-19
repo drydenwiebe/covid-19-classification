@@ -21,19 +21,39 @@ class Model(nn.Module):
         # Get the ResNet-152 model from torchvision.model library
         self.model = models.resnet152(pretrained=True)
         # Building our classifier
-        self.classifier = nn.Linear(self.model.fc.in_features,2)    # Outputs to dimensional tensor
         # Turn off training for layers (since it would take too long to train all of them)
         for params in self.model.parameters():
             params.requires_grad = False
         # Replace fully connected layer of our model with our classifier above
-        self.model.fc = self.classifier
-        
+        self.model.fc = nn.Sequential()
+
+        # Add custom classifier layers
+        self.fc1 = nn.Linear(2048, 256)
+        self.Dropout1 = nn.Dropout()
+        self.PRelU1 = nn.PReLU()
+
+        self.fc2 = nn.Linear(256, 64)
+        self.Dropout2 = nn.Dropout()
+        self.PRelU2 = nn.PReLU()
+
+        self.fc3 = nn.Linear(64, 16)
+        self.Dropout3 = nn.Dropout()
+        self.PRelU3 = nn.PReLU()
+
+        self.fc4 = nn.Linear(16, 2)
+
+
     def forward(self, x):
         # x is our input data
-        return self.model(x)
+        x = self.model(x)
+        x = self.Dropout1(self.PRelU1(self.fc1(x)))
+        x = self.Dropout2(self.PRelU2(self.fc2(x)))
+        x = self.Dropout3(self.PRelU3(self.fc3(x)))
+        x = self.fc4(x)
+        return x
 
     def fit(self, dataloaders, num_epochs):
-            optimizer = optim.Adam(self.model.fc.parameters())
+            optimizer = optim.Adam(self.parameters(), lr=1e-5)
             # Reduces our learning by a certain factor when less progress is being made in our training.
             scheduler = optim.lr_scheduler.StepLR(optimizer, 4)
             #criterion is the loss function of our model. we use Negative Log-Likelihood loss because we used  log-softmax as the last layer of our model. We can remove the log-softmax layer and replace the nn.NLLLoss() with nn.CrossEntropyLoss()
@@ -43,6 +63,7 @@ class Model(nn.Module):
             best_model_wts = copy.deepcopy(self.model.state_dict())
             best_acc = 0.0
             valid_loss_min = np.Inf
+
             for epoch in range(num_epochs):
                 print('Epoch {}/{}'.format(epoch, num_epochs - 1))
                 print('-' * 10)
@@ -54,14 +75,13 @@ class Model(nn.Module):
                 valid_acc = 0
                 
                 # Set to training
-                scheduler.step()
                 self.model.train()
                 
-                for ii, (inputs, labels) in enumerate(dataloaders['train']):
+                for j, (inputs, labels) in enumerate(dataloaders['train']):
                         # clear all gradients since gradients get accumulated after every iteration.
                         optimizer.zero_grad()
                         
-                        outputs = self.model(inputs)
+                        outputs = self.forward(inputs)
                         #calculates the loss between the output of our model and ground-truth labels                            
                         loss = criterion(outputs, labels)
                         
@@ -80,24 +100,27 @@ class Model(nn.Module):
                         # Multiply average accuracy times the number of examples in batch
                         train_acc += accuracy.item() * inputs.size(0)
                         
-                        # train_acc += torch.sum(preds == labels.data)
+                        train_acc += torch.sum(preds == labels.data)
                         
-                        # epoch_loss = train_loss / dataset_sizes['train']
-                        # epoch_acc = train_acc.double() / dataset_sizes['train']
-                        # print('{} Loss: {:.4f} Acc: {:.4f}'.format(
-                        #     'train', epoch_loss, epoch_acc))
+                        epoch_loss = train_loss / dataset_sizes['train']
+                        epoch_acc = train_acc.double() / dataset_sizes['train']
+                        print('{} Loss: {:.4f} Acc: {:.4f}'.format(
+                              'train', epoch_loss, epoch_acc))
                         
                         size = len(dataloaders['train'])
                         
-                        print(f'Epoch: {epoch}\t{100 * (ii + 1) / size:.2f}% complete.\n', end='\r')
+                        print(f'Epoch: {epoch}\t{100 * (j + 1) / size:.2f}% complete.\n', end='\r')
                 
+                # Do scheduler step after learning rate step
+                scheduler.step()
+
                 # Validation phase
                 with torch.no_grad():
                     # Set to evaluation mode
                     self.model.eval()
                     
                     for inputs, labels in dataloaders['val']:                                
-                        outputs = self.model(inputs)
+                        outputs = self.forward(inputs)
                         #calculates the loss between the output of our model and ground-truth labels                            
                         loss = criterion(outputs, labels)
                         valid_loss += loss.item() * inputs.size(0)
@@ -127,7 +150,7 @@ class Model(nn.Module):
                         # print('{} Loss: {:.4f} Acc: {:.4f}'.format(
                         #     'val', epoch_loss, epoch_acc))
                         
-                        # deep copy the model if we obtain a better validation accuracy than the previous one.
+                    # deep copy the model if we obtain a better validation accuracy than the previous one.
                     if valid_loss < valid_loss_min:
                         valid_loss_min = valid_loss
                         best_acc = valid_acc
@@ -170,10 +193,12 @@ x_test = ((x_test/2)+0.5)*255
 x_train, x_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
 
 # Display a training example and its classification
+'''
 plt.grid(False)
 plt.imshow(x_train[0,0,:,:], cmap=plt.cm.binary)
 plt.xlabel("Actual: %s" % y_train[0])
 plt.show()
+'''
 
 # Transform to torch tensor
 tensor_x_train = torch.tensor(x_train).float()
@@ -195,13 +220,4 @@ dataset_sizes = {x : len(dsets[x]) for x in ["train","val"]}
 model = Model()
 #run 10 training epochs on our model
 model_ft = model.fit(dataloaders, 10)
-
-
-
-
-
-
-
-
-
 
