@@ -62,10 +62,9 @@ class Model(nn.Module):
             optimizer = optim.Adam(self.parameters(), lr=1e-5)
             # Reduces our learning by a certain factor when less progress is being made in our training.
             scheduler = optim.lr_scheduler.StepLR(optimizer, 4)
-            #criterion is the loss function of our model. we use Negative Log-Likelihood loss because we used  log-softmax as the last layer of our model. We can remove the log-softmax layer and replace the nn.NLLLoss() with nn.CrossEntropyLoss()
+            # Loss function
             criterion = nn.BCELoss()
             since = time.time()
-            #model.state_dict() is a dictionary of our model's parameters. What we did here is to deepcopy it and assign it to a variable
             best_model_wts = copy.deepcopy(self.model.state_dict())
             best_acc = 0.0
             valid_loss_min = np.Inf
@@ -167,23 +166,10 @@ X = pickle.load(open("train_images_512.pk",'rb'), encoding='bytes').numpy()
 y = pickle.load(open("train_labels_512.pk",'rb'), encoding='bytes').numpy()
 x_test = pickle.load(open("test_images_512.pk",'rb'), encoding='bytes').numpy()
 
-
-# X = np.reshape(X, (70, 512, 512, 3))
+# Normalizing data
 X = ((X/2)+0.5)*255
 
-# x_test = np.reshape(x_test, (20, 512, 512, 3))
 x_test = ((x_test/2)+0.5)*255
-
-# X_cut = np.zeros((70,3,170,170))
-
-# for i in range(X.shape[0]):
-#     X_cut[i] = X[i][:,0:170, 0:170]
-    
-
-# x_test_cut = np.zeros((20,3,170,170))
-
-# for i in range(x_test.shape[0]):
-#     x_test_cut[i] = x_test[i][:,0:170, 0:170]
     
 # Split data into training and validation
 x_train, x_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
@@ -212,7 +198,7 @@ dataloaders = {x : data.DataLoader(dsets[x], batch_size=12, shuffle=True)
 
 dataset_sizes = {x : len(dsets[x]) for x in ["train","val"]}
 
-# we instantiate our model class
+# We instantiate our model class
 model = Model()
-# run 10 training epochs on our model
+# Run 10 training epochs on our model
 model_ft = model.fit(dataloaders, 10)
