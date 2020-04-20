@@ -20,11 +20,13 @@ class Model(nn.Module):
         super(Model, self).__init__()
         # Get the ResNet-152 model from torchvision.model library
         self.model = models.resnet152(pretrained=True)
+
         # Building our classifier
         # Turn off training for layers (since it would take too long to train all of them)
         for params in self.model.parameters():
             params.requires_grad = False
-        # Replace fully connected layer of our model with our classifier above
+
+        # Replace fully connected layer of our model to a 2048 feature vector output
         self.model.fc = nn.Sequential()
 
         # Add custom classifier layers
@@ -40,7 +42,8 @@ class Model(nn.Module):
         self.Dropout3 = nn.Dropout()
         self.PRelU3 = nn.PReLU()
 
-        self.fc4 = nn.Linear(16, 2)
+        self.fc4 = nn.Linear(16, 1)
+        self.Sigmoid = nn.Sigmoid()
 
 
     def forward(self, x):
@@ -49,15 +52,18 @@ class Model(nn.Module):
         x = self.Dropout1(self.PRelU1(self.fc1(x)))
         x = self.Dropout2(self.PRelU2(self.fc2(x)))
         x = self.Dropout3(self.PRelU3(self.fc3(x)))
-        x = self.fc4(x)
+        x = self.Sigmoid(self.fc4(x))
         return x
 
     def fit(self, dataloaders, num_epochs):
+            print(len(dataloaders['train']))
+            print(len(dataloaders['val']))
+
             optimizer = optim.Adam(self.parameters(), lr=1e-5)
             # Reduces our learning by a certain factor when less progress is being made in our training.
             scheduler = optim.lr_scheduler.StepLR(optimizer, 4)
             #criterion is the loss function of our model. we use Negative Log-Likelihood loss because we used  log-softmax as the last layer of our model. We can remove the log-softmax layer and replace the nn.NLLLoss() with nn.CrossEntropyLoss()
-            criterion = nn.CrossEntropyLoss()
+            criterion = nn.BCELoss()
             since = time.time()
             #model.state_dict() is a dictionary of our model's parameters. What we did here is to deepcopy it and assign it to a variable
             best_model_wts = copy.deepcopy(self.model.state_dict())
@@ -82,6 +88,7 @@ class Model(nn.Module):
                         optimizer.zero_grad()
                         
                         outputs = self.forward(inputs)
+                        outputs = outputs.reshape(labels.shape)
                         #calculates the loss between the output of our model and ground-truth labels                            
                         loss = criterion(outputs, labels)
                         
@@ -92,21 +99,14 @@ class Model(nn.Module):
                     
                         train_loss += loss.item() * inputs.size(0)
                         
-                        _, preds = torch.max(outputs, 1)
-                        
-                        correct_tensor = preds.eq(labels.data.view_as(preds))
-                        # Need to convert correct tensor from int to float to average
-                        accuracy = torch.mean(correct_tensor.type(torch.FloatTensor))
-                        # Multiply average accuracy times the number of examples in batch
-                        train_acc += accuracy.item() * inputs.size(0)
-                        
-                        train_acc += torch.sum(preds == labels.data)
-                        
-                        epoch_loss = train_loss / dataset_sizes['train']
-                        epoch_acc = train_acc.double() / dataset_sizes['train']
-                        print('{} Loss: {:.4f} Acc: {:.4f}'.format(
-                              'train', epoch_loss, epoch_acc))
-                        
+                        preds = torch.zeros(outputs.shape, dtype=float)
+
+                        for k in range(outputs.shape[0]):
+                            if outputs[k] >= 0.5:
+                                preds[k] = 1.0
+
+                        train_acc += torch.sum(preds.int() == labels.data.int())
+
                         size = len(dataloaders['train'])
                         
                         print(f'Epoch: {epoch}\t{100 * (j + 1) / size:.2f}% complete.\n', end='\r')
@@ -121,34 +121,30 @@ class Model(nn.Module):
                     
                     for inputs, labels in dataloaders['val']:                                
                         outputs = self.forward(inputs)
+                        outputs = outputs.reshape(labels.shape)
                         #calculates the loss between the output of our model and ground-truth labels                            
                         loss = criterion(outputs, labels)
+
                         valid_loss += loss.item() * inputs.size(0)
-                        _, preds = torch.max(outputs, 1)      
+
+                        preds = torch.zeros(outputs.shape, dtype=float)
+
+                        for k in range(outputs.shape[0]):
+                            if outputs[k] >= 0.5:
+                                preds[k] = 1.0
                         
-                        correct_tensor = preds.eq(labels.data.view_as(preds))
-                        accuracy = torch.mean(correct_tensor.type(torch.FloatTensor))
-                        # Multiply average accuracy times the number of examples
-                        valid_acc += accuracy.item() * inputs.size(0)
-                        
-                        
-                        # valid_acc += torch.sum(preds == labels.data)
-                        
+                        valid_acc += torch.sum(preds.int() == labels.data.int()) 
+
                     # Calculate average losses
                     train_loss = train_loss / dataset_sizes['train']
                     valid_loss = valid_loss / dataset_sizes['val']
-    
+
                     # Calculate average accuracy
-                    train_acc = train_acc / dataset_sizes['train']
-                    valid_acc = valid_acc / dataset_sizes['val']
+                    train_acc = train_acc.item() / dataset_sizes['train']
+                    valid_acc = valid_acc.item() / dataset_sizes['val']
                         
                     print(f'\nEpoch: {epoch} \tTraining Loss: {train_loss:.4f} \tValidation Loss: {valid_loss:.4f}')
                     print(f'\t\tTraining Accuracy: {100 * train_acc:.2f}%\t Validation Accuracy: {100 * valid_acc:.2f}%')
-                        
-                        # epoch_loss = valid_loss / dataset_sizes['val']
-                        # epoch_acc = valid_acc.double() / dataset_sizes['val']
-                        # print('{} Loss: {:.4f} Acc: {:.4f}'.format(
-                        #     'val', epoch_loss, epoch_acc))
                         
                     # deep copy the model if we obtain a better validation accuracy than the previous one.
                     if valid_loss < valid_loss_min:
@@ -202,9 +198,9 @@ plt.show()
 
 # Transform to torch tensor
 tensor_x_train = torch.tensor(x_train).float()
-tensor_y_train = torch.tensor(y_train)
+tensor_y_train = torch.tensor(y_train).float()
 tensor_x_val = torch.tensor(x_val).float()
-tensor_y_val = torch.tensor(y_val)
+tensor_y_val = torch.tensor(y_val).float()
 
 # Dataset dictionary
 dsets = {
@@ -216,8 +212,7 @@ dataloaders = {x : data.DataLoader(dsets[x], batch_size=12, shuffle=True)
 
 dataset_sizes = {x : len(dsets[x]) for x in ["train","val"]}
 
-#we instantiate our model class
+# we instantiate our model class
 model = Model()
-#run 10 training epochs on our model
+# run 10 training epochs on our model
 model_ft = model.fit(dataloaders, 10)
-
