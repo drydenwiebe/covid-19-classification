@@ -14,6 +14,7 @@ from sklearn.model_selection import train_test_split
 from torch.utils import data
 import pdb
 
+from image_aug import augment_images
 
 class Model(nn.Module):
     def __init__(self):
@@ -173,6 +174,9 @@ x_test = ((x_test/2)+0.5)*255
     
 # Split data into training and validation
 x_train, x_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Apply image augmentation
+# x_train, y_train = augment_images(x_train, y_train, num_augment=3)
 
 # Display a training example and its classification
 '''
