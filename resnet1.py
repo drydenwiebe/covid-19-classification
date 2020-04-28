@@ -14,6 +14,7 @@ from sklearn.model_selection import train_test_split
 from torch.utils import data
 import pdb
 
+from image_aug import augment_images
 
 class Model(nn.Module):
     def __init__(self):
@@ -159,6 +160,14 @@ class Model(nn.Module):
             # load best model parameters and return it as the final trained model.
             self.model.load_state_dict(best_model_wts)
             return self.model
+    
+
+    def predict(self, inputs):
+        outputs = self.forward(inputs)
+        outputs = outputs.flatten()
+        outputs[outputs >= 0.5] = 1.
+        outputs[outputs < 0.5] = 0.
+        return outputs
         
         
 # Load data
@@ -173,6 +182,9 @@ x_test = ((x_test/2)+0.5)*255
     
 # Split data into training and validation
 x_train, x_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Apply image augmentation
+x_train, y_train = augment_images(x_train, y_train, num_augment=4)
 
 # Display a training example and its classification
 '''
@@ -202,3 +214,8 @@ dataset_sizes = {x : len(dsets[x]) for x in ["train","val"]}
 model = Model()
 # Run 10 training epochs on our model
 model_ft = model.fit(dataloaders, 10)
+
+# Predict on test examples
+tensor_x_test = torch.tensor(x_test).float()
+y_pred = model.predict(tensor_x_test)
+print(y_pred)
