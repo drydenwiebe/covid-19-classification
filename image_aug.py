@@ -1,5 +1,8 @@
 import numpy as np
+import imgaug as ia
 from imgaug import augmenters as iaa
+
+ia.seed(123)
 
 def convert_images(X):
     """
@@ -24,8 +27,8 @@ def augment_images(X, y, num_augment=5):
             iaa.Sometimes(0.5, iaa.Crop(percent=(0,0.1))),
             iaa.Sometimes(0.5, iaa.LinearContrast((0.75, 1.5))),
             iaa.Sometimes(0.5, iaa.Multiply((0.8, 1.2), per_channel=0.2)),
-            iaa.Sometimes(0.5, iaa.AdditiveGaussianNoise(loc=0, scale=(0.0, 0.001*255), per_channel=0.005)),
-            iaa.Sometimes(0.5, iaa.Affine(
+            iaa.Sometimes(0.4, iaa.AdditiveGaussianNoise(loc=0, scale=(0.0, 0.0005*255), per_channel=0.005)),
+            iaa.Sometimes(0.7, iaa.Affine(
                 scale={"x": (0.8, 1.2), "y": (0.8, 1.2)},
                 translate_percent={"x": (-0.1, 0.1), "y": (-0.2, 0.2)},
                 rotate=(-15, 15),
