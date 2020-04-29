@@ -57,9 +57,6 @@ class Model(nn.Module):
         return x
 
     def fit(self, dataloaders, num_epochs):
-            print(len(dataloaders['train']))
-            print(len(dataloaders['val']))
-
             optimizer = optim.Adam(self.parameters(), lr=1e-5)
             # Reduces our learning by a certain factor when less progress is being made in our training.
             scheduler = optim.lr_scheduler.StepLR(optimizer, 4)
@@ -89,6 +86,8 @@ class Model(nn.Module):
                         
                         outputs = self.forward(inputs)
                         outputs = outputs.reshape(labels.shape)
+                        print(outputs)
+                        print(labels)
                         #calculates the loss between the output of our model and ground-truth labels                            
                         loss = criterion(outputs, labels)
                         
@@ -122,6 +121,8 @@ class Model(nn.Module):
                     for inputs, labels in dataloaders['val']:                                
                         outputs = self.forward(inputs)
                         outputs = outputs.reshape(labels.shape)
+                        print(outputs)
+                        print(labels)
                         #calculates the loss between the output of our model and ground-truth labels                            
                         loss = criterion(outputs, labels)
 
@@ -205,17 +206,19 @@ dsets = {
     "train": data.TensorDataset(tensor_x_train,tensor_y_train),
     "val": data.TensorDataset(tensor_x_val,tensor_y_val)}
 
-dataloaders = {x : data.DataLoader(dsets[x], batch_size=12, shuffle=True)
+dataloaders = {x : data.DataLoader(dsets[x], batch_size=6, shuffle=True)
                 for x in ['train', 'val']}
 
 dataset_sizes = {x : len(dsets[x]) for x in ["train","val"]}
 
 # We instantiate our model class
 model = Model()
-# Run 10 training epochs on our model
-model_ft = model.fit(dataloaders, 10)
+
+# run 10 training epochs on our model
+model_ft = model.fit(dataloaders, 100)
 
 # Predict on test examples
 tensor_x_test = torch.tensor(x_test).float()
 y_pred = model.predict(tensor_x_test)
 print(y_pred)
+>>>>>>> d21e46ff667b42e52c98acaabfbb717b6b5767e0
