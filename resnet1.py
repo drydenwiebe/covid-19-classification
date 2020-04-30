@@ -27,7 +27,7 @@ class Model(nn.Module):
         for params in self.model.parameters():
             params.requires_grad = False
 
-        # Replace fully connected layer of our model to a 2048 feature vector output
+        # Replace last fully connected layer of our model
         self.model.fc = nn.Sequential()
 
         # Add custom classifier layers
@@ -58,7 +58,7 @@ class Model(nn.Module):
 
     def fit(self, dataloaders, num_epochs):
             optimizer = optim.Adam(self.parameters(), lr=1e-5)
-            # Reduces our learning by a certain factor when less progress is being made in our training.
+            # Reduces learning rate when less progess is made
             scheduler = optim.lr_scheduler.StepLR(optimizer, 4)
             # Loss function
             criterion = nn.BCELoss()
@@ -77,7 +77,7 @@ class Model(nn.Module):
                 train_acc = 0
                 valid_acc = 0
                 
-                # Set to training
+                # Set model to train
                 self.model.train()
                 
                 for j, (inputs, labels) in enumerate(dataloaders['train']):
@@ -88,12 +88,12 @@ class Model(nn.Module):
                         outputs = outputs.reshape(labels.shape)
                         print(outputs)
                         print(labels)
-                        #calculates the loss between the output of our model and ground-truth labels                            
+                        # Calculates the loss                           
                         loss = criterion(outputs, labels)
                         
-                        #backpropagate gradients from the loss node through all the parameters
+                        # Backpropagation
                         loss.backward()
-                        #Update parameters(Weighs and biases) of our model using the gradients.
+                        # Update parameters
                         optimizer.step()
                     
                         train_loss += loss.item() * inputs.size(0)
@@ -123,7 +123,7 @@ class Model(nn.Module):
                         outputs = outputs.reshape(labels.shape)
                         print(outputs)
                         print(labels)
-                        #calculates the loss between the output of our model and ground-truth labels                            
+                        # Calculates the loss                          
                         loss = criterion(outputs, labels)
 
                         valid_loss += loss.item() * inputs.size(0)
@@ -147,7 +147,7 @@ class Model(nn.Module):
                     print(f'\nEpoch: {epoch} \tTraining Loss: {train_loss:.4f} \tValidation Loss: {valid_loss:.4f}')
                     print(f'\t\tTraining Accuracy: {100 * train_acc:.2f}%\t Validation Accuracy: {100 * valid_acc:.2f}%')
                         
-                    # deep copy the model if we obtain a better validation accuracy than the previous one.
+                    # Copy the model if it has a better validation loss
                     if valid_loss < valid_loss_min:
                         valid_loss_min = valid_loss
                         best_acc = valid_acc
@@ -158,8 +158,9 @@ class Model(nn.Module):
                 time_elapsed // 60, time_elapsed % 60))
             print('Best val Acc: {:4f}'.format(best_acc))
             
-            # load best model parameters and return it as the final trained model.
+            # Load best model parameters 
             self.model.load_state_dict(best_model_wts)
+            # Return model
             return self.model
     
 
