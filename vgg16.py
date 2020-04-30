@@ -153,7 +153,7 @@ class Model(nn.Module):
                     if valid_loss < valid_loss_min:
                         valid_loss_min = valid_loss
                         best_acc = valid_acc
-                        best_model_wts = copy.deepcopy(self.model.state_dict())
+                        best_model_wts = copy.deepcopy(self.state_dict())
                         
             time_elapsed = time.time() - since
             print('Training complete in {:.0f}m {:.0f}s'.format(
@@ -161,17 +161,18 @@ class Model(nn.Module):
             print('Best val Acc: {:4f}'.format(best_acc))
             
             # load best model parameters and return it as the final trained model.
-            self.model.load_state_dict(best_model_wts)
-            torch.save(model.state_dict(), 'vgg_state.pt')
+            self.load_state_dict(best_model_wts)
+            torch.save(self.state_dict(), 'vgg_state.pt')
             return self.model
     
 
     def predict(self, inputs):
-        outputs = self.forward(inputs)
-        outputs = outputs.flatten()
-        outputs[outputs >= 0.5] = 1.
-        outputs[outputs < 0.5] = 0.
-        return outputs
+        probs = self.forward(inputs)
+        probs = probs.flatten()
+        labels = probs.clone()
+        labels[labels >= 0.5] = 1.
+        labels[labels < 0.5] = 0.
+        return labels, probs
         
         
 # Load data
@@ -222,9 +223,11 @@ dataset_sizes = {x : len(dsets[x]) for x in ["train","val"]}
 # We instantiate our model class
 model = Model()
 # Run 10 training epochs on our model
-model_ft = model.fit(dataloaders, 10)
+model_ft = model.fit(dataloaders, num_epochs=5)
+# model.load_state_dict(torch.load('vgg_state.pt'))
 
 # Predict on test examples
 tensor_x_test = torch.tensor(x_test).float()
-y_pred = model.predict(tensor_x_test)
-print(y_pred)
+labels, probs = model.predict(tensor_x_test)
+print(labels)
+print(probs)
