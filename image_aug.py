@@ -2,6 +2,9 @@ import numpy as np
 import imgaug as ia
 from imgaug import augmenters as iaa
 
+# This image augmentation procedure uses the imgaug library in Python
+# https://imgaug.readthedocs.io/en/latest/source/examples_basics.html
+
 ia.seed(123)
 
 def convert_images(X):
