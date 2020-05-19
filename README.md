@@ -1,5 +1,3 @@
-CPSC 340 take home final group portion.
-
 Classification of chest X-ray samples for Covid-19 positivity. 
   
 Sources used:  
